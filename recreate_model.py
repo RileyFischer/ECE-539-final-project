@@ -10,7 +10,6 @@ from sklearn.svm import SVC
 from skopt import BayesSearchCV
 from skopt.space import Real, Categorical, Integer
 from skopt.sampler import Grid
-import seaborn as sns
 
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline
@@ -34,48 +33,11 @@ df_worst = df.iloc[:, 21:]
 
 # extract the target variable
 y = df['diagnosis']
-def min_max_scaler(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Transform features by scaling each feature to a range from 0 to 1.
-    """
-    minimum = df.min()
-    
-    df = (df - minimum) / (df.max() - minimum)
-    
-    return df
-
-def df_melter(y: pd.Series, df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Modify the selected columns of a DataFrame from wide to long format.
-    """
-    df = pd.concat([y, df], axis=1)
-
-    return pd.melt(df, id_vars='diagnosis', var_name='features', value_name='value')
-
-# find the outliers
-y_pred = LocalOutlierFactor().fit_predict(df.drop(["diagnosis"], axis=1))
-
-outlier_count = abs(sum(y_pred[y_pred < 1]))
-
-print(f'The vanilla Local Outlier Factor identified {outlier_count} outliers ({round(outlier_count/len(df), 2)}%)' )
 # encoding the target variable  
 df['diagnosis'] = df['diagnosis'].map({'B' : 0, 'M' : 1})
 
 # convert it into a numeric variable
 df['diagnosis'] = pd.to_numeric(df['diagnosis'])
-
-
-plt.figure(figsize=(30, 24))
-
-# create the correlation matrix
-corr_mat = df.corr(method='spearman')
-
-# remove the upper diagonal
-mask = np.zeros(corr_mat.shape, dtype=bool)
-mask[np.triu_indices(len(mask))] = True
-
-high_corr_feat_list = list(corr_mat[(abs(corr_mat['diagnosis']) >= 0.7) & (corr_mat.columns != 'diagnosis')].index)
-print(high_corr_feat_list)
 
 def nested_cv(X: pd.DataFrame, y: pd.Series, cv_outer: StratifiedKFold, opt_search: BayesSearchCV, validation_result: bool) -> None:
     """
@@ -142,7 +104,6 @@ optimizer_dict = {
         'n_initial_points' : 10,
         'initial_point_generator' : Grid(border="include")
         }
-
 
 
 # split the columns into features and targets
@@ -222,6 +183,7 @@ search_space_list = [
     (gnb_search, search_num),
     (knn_search, search_num)
 ]
+## Base (doesn't run)
 # define the Bayesian search
 opt_search = BayesSearchCV(
     estimator=pipeline,
@@ -237,6 +199,8 @@ pipeline = Pipeline([
     ('scaler', MinMaxScaler()), 
     ('clf', None)
 ])
+#nested_cv(X, y, cv_outer, opt_search, False)
+## Base+scaling
 # define the Bayesian search
 opt_search = BayesSearchCV(
     estimator=pipeline,
@@ -250,7 +214,7 @@ opt_search = BayesSearchCV(
 # enumerate splits
 nested_cv(X, y, cv_outer, opt_search, False)
 
-## 2nd model
+## base+scaling+outlier
 def lof(X, y):
     """Find the outliers above the 1st percentile and remove them from both X and y."""
     model = LocalOutlierFactor()

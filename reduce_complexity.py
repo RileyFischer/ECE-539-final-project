@@ -44,13 +44,10 @@ y = df['diagnosis']
 X_full = df[df.columns.drop(['diagnosis'])]
 # split the dataset into 3 sets
 X_mean = df.iloc[:, 1:11]
-print(X_mean)
 X_se = df.iloc[:, 11:21]
-print(X_se)
 X_worst = df.iloc[:, 21:]
-print(X_worst)
 # Reduced features
-df_worstX_high_corr = X_full[high_corr_feat_list]
+X_high_corr = X_full[high_corr_feat_list]
 X_hand_picked = X_full[['radius_mean','concave points_mean','radius_se','texture_mean']]
 X_radius = X_full[['radius_mean','radius_se']]
 
