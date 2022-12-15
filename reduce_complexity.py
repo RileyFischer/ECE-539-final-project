@@ -14,7 +14,7 @@ from imblearn.pipeline import Pipeline
 from imblearn import FunctionSampler
 import pandas as pd
 import numpy as np
-from sklearn.metrics import recall_score, precision_score
+from sklearn.metrics import recall_score, precision_score,accuracy_score
 
 df = pd.read_csv('breast-cancer.csv')
 
@@ -57,18 +57,19 @@ def nested_cv(X: pd.DataFrame, y: pd.Series, cv_outer: StratifiedKFold, opt_sear
     """
     Run the nested cross validation.
     """
-    outer_results, inner_results, outer_precisions = outer_loop(X=X, y=y, cv_outer=cv_outer, opt_search=opt_search, validation_result=validation_result)
+    outer_results, inner_results, outer_precisions, outer_accuracies = outer_loop(X=X, y=y, cv_outer=cv_outer, opt_search=opt_search, validation_result=validation_result)
 
     # print the CV overall results
     print(f'Recall | Validation Mean: {round(np.mean(inner_results), 3)}, Validation Std: {round(np.std(inner_results), 3)}')
     print(f'Recall | Test Mean: {round(np.mean(outer_results), 3)}, Test Std: {round(np.std(outer_results), 3)}')
     print(f'Precision | Test Mean: {round(np.mean(outer_precisions), 3)}, Test Std: {round(np.std(outer_precisions), 3)}')
+    print(f'Accuracy | Test Mean: {round(np.mean(outer_accuracies), 3)}, Test Std: {round(np.std(outer_accuracies), 3)}')
 
 def outer_loop(X: pd.DataFrame, y: pd.Series, cv_outer: StratifiedKFold, opt_search: BayesSearchCV, validation_result: bool) -> list:
     """
     Perform the outer loop split and per each fold, its inner loop.
     """
-    outer_results, inner_results , outer_precisions= [], [], []
+    outer_results, inner_results , outer_precisions, outer_accuracy= [], [], [],[]
     
     for i, (train_index, test_index) in enumerate(cv_outer.split(X, y), start=1):
         X_train, X_test = X.loc[train_index], X.loc[test_index]
@@ -79,20 +80,21 @@ def outer_loop(X: pd.DataFrame, y: pd.Series, cv_outer: StratifiedKFold, opt_sea
 
         # save the best model
         best_model = opt_search.best_estimator_
-
         # predict on the test set
         y_pred = best_model.predict(X_test)
 
         # calculate the recall on test set
         recall = recall_score(y_test, y_pred)
         precision = precision_score(y_test, y_pred)
+        accuracy = accuracy_score(y_test,y_pred)
         # append the recall results
         outer_results.append(recall)
         inner_results.append(opt_search.best_score_)
         outer_precisions.append(precision)
+        outer_accuracy.append(accuracy)
         print_validation_results(i=i, opt_search=opt_search, recall=recall, validation_result=validation_result)
     
-    return outer_results, inner_results, outer_precisions
+    return outer_results, inner_results, outer_precisions, outer_accuracy
 
 
 def print_validation_results(i: int, opt_search: BayesSearchCV, recall: float, validation_result: bool) -> None:
@@ -218,10 +220,17 @@ opt_search = BayesSearchCV(
     return_train_score=True,
     random_state=42)
 # enumerate splits
+print("Full features\n")
 nested_cv(X_full, y, cv_outer, opt_search, False)
+print("Highly correlated\n")
 nested_cv(X_high_corr, y, cv_outer, opt_search, False)
+print("Hand picked\n")
 nested_cv(X_hand_picked, y, cv_outer, opt_search, False)
+print("Radius only\n")
 nested_cv(X_radius, y, cv_outer, opt_search, False)
+print("Means only\n")
 nested_cv(X_mean, y, cv_outer, opt_search, False)
+print("Standard error only\n")
 nested_cv(X_se, y, cv_outer, opt_search, False)
+print("Worst only\n")
 nested_cv(X_worst, y, cv_outer, opt_search, False)
